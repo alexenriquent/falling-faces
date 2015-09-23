@@ -12,6 +12,7 @@ void welcome();
 int buttons_pressed();
 int left_button_pressed();
 int right_button_pressed();
+int check_option(int option);
 
 int main() {
 
@@ -29,45 +30,29 @@ int main() {
     if (buttons_pressed()) {
       while (1) {
         clear_screen();
-
-        if (right_button_pressed()) {
-          opt++;
-          opt = opt % 3;
-        }
+        opt = check_option(opt);
 
         while (opt == 0) {
           clear_screen();
-
-          if (right_button_pressed()) {
-            opt++;
-            opt = opt % 3;
-          }
-
+          opt = check_option(opt);
           draw_string(0, 0, "Level 1");
+          draw_string(0, 8, "Basic");
           show_screen();
         }
 
         while (opt == 1) {
           clear_screen();
-
-          if (right_button_pressed()) {
-            opt++;
-            opt = opt % 3;
-          }
-
+          opt = check_option(opt);
           draw_string(0, 0, "Level 2");
+          draw_string(0, 8, "Potentiometers");
           show_screen();
         }
 
         while (opt == 2) {
           clear_screen();
-
-          if (right_button_pressed()) {
-            opt++;
-            opt = opt % 3;
-          }
-
+          opt = check_option(opt);
           draw_string(0, 0, "Level 3");
+          draw_string(0, 8, "Serial Port");
           show_screen();
         }
 
@@ -124,6 +109,14 @@ int right_button_pressed() {
     }
   }
   return 0;
+}
+
+int check_option(int option) {
+  if (right_button_pressed()) {
+    option++;
+    option = option % 3;
+  }
+  return option;
 }
 
 
