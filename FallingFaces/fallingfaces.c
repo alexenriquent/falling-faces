@@ -10,10 +10,12 @@
 void init();
 void welcome();
 int buttons_pressed();
+int left_button_pressed();
+int right_button_pressed();
 
 int main() {
 
-  int opt;
+  int opt = 0;
 
   set_clock_speed(CPU_8MHz);
 
@@ -25,9 +27,50 @@ int main() {
     show_screen();
 
     if (buttons_pressed()) {
-      clear_screen();
       while (1) {
         clear_screen();
+
+        if (right_button_pressed()) {
+          opt++;
+          opt = opt % 3;
+        }
+
+        while (opt == 0) {
+          clear_screen();
+
+          if (right_button_pressed()) {
+            opt++;
+            opt = opt % 3;
+          }
+
+          draw_string(0, 0, "Level 1");
+          show_screen();
+        }
+
+        while (opt == 1) {
+          clear_screen();
+
+          if (right_button_pressed()) {
+            opt++;
+            opt = opt % 3;
+          }
+
+          draw_string(0, 0, "Level 2");
+          show_screen();
+        }
+
+        while (opt == 2) {
+          clear_screen();
+
+          if (right_button_pressed()) {
+            opt++;
+            opt = opt % 3;
+          }
+
+          draw_string(0, 0, "Level 3");
+          show_screen();
+        }
+
         show_screen();
       }
     }
@@ -50,12 +93,37 @@ void welcome() {
 }
 
 int buttons_pressed() {
-  if (PINB & (1 << PB0) ||
-    PINB & (1 << PB1)) {
+  if (left_button_pressed() || 
+    right_button_pressed()) {
     return 1;
   }
   return 0;
 }
 
+int left_button_pressed() {
+  static uint8_t button_state = 0;
+  uint8_t current_state = PINB & (1 << PB0);
+
+  if (current_state != button_state) {
+    button_state = current_state;
+    if (current_state == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int right_button_pressed() {
+  static uint8_t button_state = 0;
+  uint8_t current_state = PINB & (1 << PB1);
+
+  if (current_state != button_state) {
+    button_state = current_state;
+    if (current_state == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
 
 
