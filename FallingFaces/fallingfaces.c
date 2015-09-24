@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
 #include <math.h>
 
@@ -18,6 +19,10 @@ int buttons_pressed();
 int left_button_pressed();
 int right_button_pressed();
 int check_option(int option);
+void menu(int level, char desc[], char buff[]);
+void score_bar(int lives, int scores, char buff[]);
+
+void update_player(Sprite* player);
 
 unsigned char player_bitmaps[BYTE_PER_PLAYER] = {
   0b00000000,
@@ -87,6 +92,9 @@ unsigned char faces_bitmaps[NUM_FACES][BYTE_PER_FACE] = {
     }
 };
 
+Sprite player;
+Sprite faces[NUM_FACES];
+
 int main() {
 
   int opt = 0;
@@ -94,14 +102,10 @@ int main() {
   int scores = 0;
   char buff[80];
 
-  Sprite player;
-  Sprite faces[NUM_FACES];
-
-  init_sprite(&player, 42, 40, 8, 8, player_bitmaps);
-
-  for (int i = 0; i < NUM_FACES; i++) {
-    init_sprite(&faces[i], 0, 0, 16, 16, faces_bitmaps[i]);
-  }
+  init_sprite(&player, 39, 40, 8, 8, player_bitmaps);
+  init_sprite(&faces[0], 12, 10, 16, 16, faces_bitmaps[0]);
+  init_sprite(&faces[1], 33, 10, 16, 16, faces_bitmaps[1]);
+  init_sprite(&faces[2], 54, 10, 16, 16, faces_bitmaps[2]);
 
   set_clock_speed(CPU_8MHz);
 
@@ -119,37 +123,18 @@ int main() {
 
         while (opt == 0) {
           clear_screen();
-          draw_string(0, 0, "Level 1");
-          draw_string(0, 8, "Basic");
-          draw_string(0, 24, "Left: Play");
-          draw_string(0, 32, "Right: Skip");
+          menu(1, "Basic", buff);
           opt = check_option(opt);
 
           if (left_button_pressed()) {
             while (lives > 0) {
               clear_screen();
-              draw_string(0, 0, "L:");
-              sprintf(buff, "%d", lives);
-              draw_string(12, 0, buff);
-              draw_string(17, 0, ", S:");
-              sprintf(buff, "%d", scores);
-              draw_string(40, 0, buff);
-              draw_line(0, 8, 84, 8);
+              score_bar(lives, scores, buff);
               draw_sprite(&player);
+              update_player(&player);
 
-              int next_left = (int) round(player.x - 1);
-              int next_right = (int) round(player.x + 5);
-
-              if (left_button_pressed()) {
-                player.x -= 3;
-                if (next_left <= 0) {
-                  player.x = 3;
-                }
-              } else if (right_button_pressed()) {
-                player.x += 3;
-                if (next_right >= 83) {
-                  player.x = 79;
-                }
+              for (int i = 0; i < NUM_FACES; i++) {
+                draw_sprite(&faces[i]);
               }
 
               show_screen();
@@ -161,20 +146,14 @@ int main() {
 
         while (opt == 1) {
           clear_screen();
-          draw_string(0, 0, "Level 2");
-          draw_string(0, 8, "Potentiometers");
-          draw_string(0, 24, "Left: Play");
-          draw_string(0, 32, "Right: Skip");
+          menu(2, "Potentiometers", buff);
           opt = check_option(opt);
           show_screen();
         }
 
         while (opt == 2) {
           clear_screen();
-          draw_string(0, 0, "Level 3");
-          draw_string(0, 8, "Serial Port");
-          draw_string(0, 24, "Left: Play");
-          draw_string(0, 32, "Right: Skip");
+          menu(3, "Serial Port", buff);
           opt = check_option(opt);
           show_screen();
         }
@@ -191,6 +170,15 @@ void init() {
   LCDInitialise(LCD_DEFAULT_CONTRAST);
 
   DDRB &= ~((1 << PB0) | (1 << PB1));
+
+  TCCR1B &= ~(1 << WGM12);
+
+  TCCR1B |= ((1 << CS11) | (1 << CS10));
+  TCCR1B &= ~(1 << CS12);
+
+  TIMSK1 = (1 << TOIE1);
+
+  sei();
 }
 
 void welcome() {
@@ -240,6 +228,52 @@ int check_option(int option) {
     option = option % 3;
   }
   return option;
+}
+
+void menu(int level, char desc[], char buff[]) {
+  draw_string(0, 0, "Level");
+  sprintf(buff, "%d", level);
+  draw_string(28, 0, buff);
+  draw_string(0, 8, desc);
+  draw_string(0, 24, "Left: Play");
+  draw_string(0, 32, "Right: Skip");
+}
+
+void score_bar(int lives, int scores, char buff[]) {
+  draw_string(0, 0, "L:");
+  sprintf(buff, "%d", lives);
+  draw_string(12, 0, buff);
+  draw_string(17, 0, ", S:");
+  sprintf(buff, "%d", scores);
+  draw_string(40, 0, buff);
+  draw_line(0, 8, 84, 8);
+}
+
+void update_player(Sprite* player) {
+  int next_left = (int) round(player->x - 1);
+  int next_right = (int) round(player->x + 5);
+
+  if (left_button_pressed()) {
+    player->x -= 3;
+    if (next_left <= 0) {
+      player->x = 0;
+    }
+  } else if (right_button_pressed()) {
+    player->x += 3;
+    if (next_right >= 83) {
+        player->x = 79;
+    }
+  }
+}
+
+ISR(TIMER1_OVF_vect) {
+  for (int i = 0; i < NUM_FACES; i++) {
+    int next_y = (int) round(faces[i].y + 1);
+    faces[i].y += 2;
+    if (next_y >= 48) {
+      faces[i].y = 10;
+    }
+  }
 }
 
 
