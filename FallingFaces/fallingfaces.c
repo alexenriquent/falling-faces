@@ -26,6 +26,7 @@ void reset_game();
 void draw_player();
 void draw_faces();
 void update_player();
+void update_player_pot();
 void update_faces();
 void update_status();
 int player_collision();
@@ -33,7 +34,7 @@ int faces_collision(Sprite* face1, Sprite* face2);
 void wrap_around();
 void randomise_faces();
 void check_speed();
-void finish(char desc[]);
+int finish();
 
 unsigned char player_bitmaps[BYTE_PER_PLAYER] = {
   0b00000000,
@@ -143,24 +144,15 @@ int main() {
           if (left_button_pressed()) {
             reset_game();
 
-            while (lives > 0) {
+            while (lives > 0 && scores < 20) {
               clear_screen();
               status(buff);
               update_player();
               update_faces();
               check_speed();
               show_screen();
-
-              if (scores == 20) {
-                finish("You win!");
-                break;
-              }
             }
-
-            if (lives == 0) {
-              finish("You lose!");
-              opt = 0;
-            }
+            opt = finish();
           }
           show_screen();
         }
@@ -169,6 +161,20 @@ int main() {
           clear_screen();
           menu(2, "Potentiometers", buff);
           opt = check_option(opt);
+
+          if (left_button_pressed()) {
+            reset_game();
+
+            while (lives > 0) {
+              clear_screen();
+              status(buff);
+              update_player_pot();
+              update_faces();
+              check_speed();
+              show_screen();
+            }
+            opt = finish();
+          }
           show_screen();
         }
 
@@ -199,7 +205,17 @@ void init() {
 
   TIMSK1 = (1 << TOIE1);
 
+  ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);
+
+  ADMUX |= (1 << ADLAR);
+
+  ADMUX |= (1 << REFS0);
+
+  ADCSRA |= (1 << ADEN);
+
   sei();
+
+  ADCSRA |= (1 << ADSC);
 }
 
 void welcome() {
@@ -267,6 +283,10 @@ void status(char buff[]) {
   draw_string(17, 0, ", S:");
   sprintf(buff, "%d", scores);
   draw_string(40, 0, buff);
+  // sprintf(buff, "%d", speed);
+  // draw_string(78, 0, buff);
+  // sprintf(buff, "%d", ADCH);
+  // draw_string(60, 0, buff);
   draw_line(0, 8, 84, 8);
 }
 
@@ -311,6 +331,12 @@ void update_player() {
         player.x = 79;
     }
   }
+}
+
+void update_player_pot() {
+  draw_player();
+  player.x = 79 - floor(ADCH / 3.2);
+  ADCSRA |= (1 << ADSC);
 }
 
 void update_faces() {
@@ -363,7 +389,7 @@ void wrap_around() {
   int random = 0;
 
   for (int i = 0; i < NUM_FACES; i++) {
-    int next_y = (int) round(faces[i].y + 1);
+    int next_y = (int) round(faces[i].y + 15);
 
     if (next_y >= 48) {
       if (speed == 1 || speed == 2) {
@@ -406,11 +432,19 @@ void check_speed() {
   } 
 }
 
-void finish(char desc[]) {
+int finish() {
   clear_screen();
-  draw_string(22, 20, desc);
-  show_screen();
-  _delay_ms(3000);
+  if (scores == 20) {
+    draw_string(22, 20, "You win!");
+    show_screen();
+    _delay_ms(3000);
+    return 1;
+  } else if (lives == 0) {
+    draw_string(22, 20, "You lose!");
+    show_screen();
+    _delay_ms(3000);
+    return 0;
+  } 
 }
 
 ISR(TIMER1_OVF_vect) {
@@ -420,5 +454,3 @@ ISR(TIMER1_OVF_vect) {
     }
   }
 }
-
-
