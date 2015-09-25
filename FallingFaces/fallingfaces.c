@@ -22,7 +22,8 @@ int right_button_pressed();
 int check_option(int option);
 void menu(int level, char desc[], char buff[]);
 void status(int lives, int scores, char buff[]);
-void update_player(Sprite* player);
+void update_player();
+void update_faces();
 int faces_collision(Sprite* face1, Sprite* face2);
 
 unsigned char player_bitmaps[BYTE_PER_PLAYER] = {
@@ -103,7 +104,6 @@ int main() {
   int lives = 3;
   int scores = 0;
   char buff[80];
-  int random = 0;
 
   init_sprite(&player, 39, 40, 8, 8, player_bitmaps);
   init_sprite(&faces[0], 10, 10, 16, 16, faces_bitmaps[0]);
@@ -134,36 +134,11 @@ int main() {
             while (lives > 0) {
               clear_screen();
               status(lives, scores, buff);
-              draw_sprite(&player);
-              update_player(&player);
-
-              for (int i = 0; i < NUM_FACES; i++) {
-                draw_sprite(&faces[i]);
-              }
-
-              for (int i = 0; i < NUM_FACES; i++) {
-                int next_y = (int) round(faces[i].y + 1);
-
-                if (next_y >= 49) {
-                  faces[i].y = 10;
-                  random = rand() % 66;
-                  faces[i].x = random;
-
-                  while (faces_collision(&faces[i], &faces[(i + 1) % 3]) ||
-                    faces_collision(&faces[i], &faces[(i + 2) % 3])) {
-                    random = rand() % 66;
-                    faces[i].x = random;
-                  }
-
-                  faces[i].x = random;
-                  faces[i].y = 10;
-                }
-              }
-
+              update_player();
+              update_faces();
               show_screen();
             }
           }
-
           show_screen();
         }
 
@@ -272,29 +247,64 @@ void status(int lives, int scores, char buff[]) {
   draw_line(0, 8, 84, 8);
 }
 
-void update_player(Sprite* player) {
-  int next_left = (int) round(player->x - 1);
-  int next_right = (int) round(player->x + 5);
+void update_player() {
+  draw_sprite(&player);
+
+  int next_left = (int) round(player.x - 1);
+  int next_right = (int) round(player.x + 5);
 
   if (left_button_pressed()) {
-    player->x -= 3;
+    player.x -= 3;
     if (next_left <= 0) {
-      player->x = 0;
+      player.x = 0;
     }
   } else if (right_button_pressed()) {
-    player->x += 3;
+    player.x += 3;
     if (next_right >= 83) {
-        player->x = 79;
+        player.x = 79;
+    }
+  }
+}
+
+void update_faces() {
+  int random = 0;
+
+  for (int i = 0; i < NUM_FACES; i++) {
+    if (faces[i].y >= 10) {
+      draw_sprite(&faces[i]);
+    }
+  }
+
+  for (int i = 0; i < NUM_FACES; i++) {
+    int next_y = (int) round(faces[i].y + 1);
+
+    if (next_y >= 48) {
+      faces[i].y = 8;
+      random = rand() % 66;
+      faces[i].x = random;
+    }
+  }
+
+  for (int i = 0; i < NUM_FACES; i++) {
+    while (faces_collision(&faces[i], &faces[(i + 1) % 3])) {
+      random = rand() % 66;
+      faces[i].x = random;
+      faces[i].y = 8;
     }
   }
 }
 
 int faces_collision(Sprite* face1, Sprite* face2) {
-  return ((abs(face1->x - face2->x) * 2) - 10 < 32);
-  // return (face1->x < face2->x + 23 &&
-  //   face1->x + 23 > face2->x &&
-  //   face1->y < face2->y + 16 &&
-  //   face1->y + 16 > face2->y);
+  return (abs(face1->x - face2->x) <= 21)/* &&
+    (abs(face1->y - face2->y) <= 21)*/;
+
+  // if ((face1->x <= face2->x + 15 && face1->x + 15 >= face2->x) ||
+  //   face1->x + 15 >= face2->x && face1->x <= face2->x + 15) {
+  //   if (face1->y <= face2->y + 15 && face1->y + 15 >= face2->y) {
+  //     return 1;
+  //   }
+  // }
+  // return 0;
 }
 
 ISR(TIMER1_OVF_vect) {
