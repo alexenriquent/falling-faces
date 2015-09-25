@@ -24,6 +24,7 @@ void menu(int level, char desc[], char buff[]);
 void status(int lives, int scores, char buff[]);
 void update_player();
 void update_faces();
+int player_collision();
 int faces_collision(Sprite* face1, Sprite* face2);
 
 unsigned char player_bitmaps[BYTE_PER_PLAYER] = {
@@ -136,6 +137,11 @@ int main() {
               status(lives, scores, buff);
               update_player();
               update_faces();
+
+              if (player_collision()) {
+                scores++;
+              }
+
               show_screen();
             }
           }
@@ -292,6 +298,18 @@ void update_faces() {
       faces[i].y = 8;
     }
   }
+}
+
+int player_collision() {
+  for (int i = 0; i < NUM_FACES; i++) {
+    if (player.x + 4 >= faces[i].x &&
+      player.x <= faces[i].x + 15 &&
+      player.y + 7 >= faces[i].y &&
+      player.y <= faces[i].y + 15) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 int faces_collision(Sprite* face1, Sprite* face2) {
