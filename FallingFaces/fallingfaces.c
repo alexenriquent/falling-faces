@@ -23,10 +23,15 @@ int check_option(int option);
 void menu(int level, char desc[], char buff[]);
 void status(char buff[]);
 void reset_game();
+void draw_player();
+void draw_faces();
 void update_player();
 void update_faces();
+void update_status();
 int player_collision();
 int faces_collision(Sprite* face1, Sprite* face2);
+void wrap_around();
+void randomise_faces();
 void check_speed();
 void finish(char desc[]);
 
@@ -277,8 +282,20 @@ void reset_game() {
   }
 }
 
-void update_player() {
+void draw_player() {
   draw_sprite(&player);
+}
+
+void draw_faces() {
+  for (int i = 0; i < NUM_FACES; i++) {
+    if (faces[i].y >= 10) {
+      draw_sprite(&faces[i]);
+    }
+  }
+}
+
+void update_player() {
+  draw_player();
 
   int next_left = (int) round(player.x - 1);
   int next_right = (int) round(player.x + 5);
@@ -297,41 +314,13 @@ void update_player() {
 }
 
 void update_faces() {
-  int random = 0;
+  draw_faces();
+  wrap_around();
+  randomise_faces();
+  update_status();
+}
 
-  for (int i = 0; i < NUM_FACES; i++) {
-    if (faces[i].y >= 10) {
-      draw_sprite(&faces[i]);
-    }
-  }
-
-  for (int i = 0; i < NUM_FACES; i++) {
-    int next_y = (int) round(faces[i].y + 1);
-
-    if (next_y >= 48) {
-      if (speed == 1 || speed == 2) {
-        faces[i].y = 7;
-      } else {
-        faces[i].y = 8;
-      } 
-      random = rand() % 66;
-      faces[i].x = random;
-      finish_round = 0;
-    }
-  }
-
-  for (int i = 0; i < NUM_FACES; i++) {
-    while (faces_collision(&faces[i], &faces[(i + 1) % 3])) {
-      random = rand() % 66;
-      faces[i].x = random;
-      if (speed == 1 || speed == 2) {
-        faces[i].y = 7;
-      } else {
-        faces[i].y = 8;
-      } 
-    }
-  }
-
+void update_status() {
   if (!finish_round) {
     if (player_collision() >= 0) {
       switch (player_collision()) {
@@ -368,6 +357,41 @@ int player_collision() {
 int faces_collision(Sprite* face1, Sprite* face2) {
   return (abs(face1->x - face2->x) <= 21)/* &&
     (abs(face1->y - face2->y) <= 21)*/;
+}
+
+void wrap_around() {
+  int random = 0;
+
+  for (int i = 0; i < NUM_FACES; i++) {
+    int next_y = (int) round(faces[i].y + 1);
+
+    if (next_y >= 48) {
+      if (speed == 1 || speed == 2) {
+        faces[i].y = 7;
+      } else {
+        faces[i].y = 8;
+      } 
+      random = rand() % 66;
+      faces[i].x = random;
+      finish_round = 0;
+    }
+  }
+}
+
+void randomise_faces() {
+  int random = 0;
+
+  for (int i = 0; i < NUM_FACES; i++) {
+    while (faces_collision(&faces[i], &faces[(i + 1) % 3])) {
+      random = rand() % 66;
+      faces[i].x = random;
+      if (speed == 1 || speed == 2) {
+        faces[i].y = 7;
+      } else {
+        faces[i].y = 8;
+      } 
+    }
+  } 
 }
 
 void check_speed() {
