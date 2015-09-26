@@ -35,6 +35,8 @@ int player_collision();
 int faces_collision(Sprite* face1, Sprite* face2);
 void wrap_around();
 void randomise_faces();
+void randomise_directions();
+void spawn_faces();
 void check_speed();
 int finish();
 void send_str(char* str);
@@ -114,6 +116,7 @@ int lives = 3;
 int scores = 0;
 int finish_round = 0;
 int speed = 0;
+int serial_port = 0;
 
 int main() {
 
@@ -188,6 +191,7 @@ int main() {
 
           if (left_button_pressed()) {
             reset_game();
+            start = 0;
 
             clear_screen();
             draw_string(14, 17, "Waiting for");
@@ -197,19 +201,27 @@ int main() {
             while (!usb_configured() || 
               !usb_serial_get_control());
 
+            for (int i = 0; i < NUM_FACES; i++) {
+              faces[i].x = 0;
+              faces[i].y = 0;
+            }
+
+            spawn_faces();
+            randomise_directions();
+            serial_port = 1;
+
             while (lives > 0) {
               clear_screen();
               status(buff);
               update_player_usb();
+              draw_faces();
               check_speed();
               show_screen();
             }
             opt = finish();
           }
-
           show_screen();
         }
-
         show_screen();
       }
     }
@@ -323,9 +335,13 @@ void reset_game() {
   scores = 0;
   finish_round = 0;
   speed = 0;
+  serial_port = 0;
+  player.x = 39;
 
   for (int i = 0; i < NUM_FACES; i++) {
     faces[i].y = 10;
+    faces[i].dx = 0;
+    faces[i].dy = 0;
   }
 }
 
@@ -447,8 +463,8 @@ int player_collision() {
 }
 
 int faces_collision(Sprite* face1, Sprite* face2) {
-  return (abs(face1->x - face2->x) <= 21)/* &&
-    (abs(face1->y - face2->y) <= 21)*/;
+  return (abs(face1->x - face2->x) <= 21) &&
+    (abs(face1->y - face2->y) <= 21);
 }
 
 void wrap_around() {
@@ -486,6 +502,45 @@ void randomise_faces() {
   } 
 }
 
+void randomise_directions() {
+  int rand_x;
+  int rand_y;
+
+  for (int i = 0; i < NUM_FACES; i++) {
+    rand_x = rand() % 2;
+    rand_y = rand() % 2;
+    if (rand_x == 0) {
+      faces[i].dx = -2;
+    } else if (rand_x == 1) {
+      faces[i].dx = 2;
+    }
+    if (rand_y == 0) {
+      faces[i].dy = -2;
+    } else if (rand_y == 1) {
+      faces[i].dy = 2;
+    }
+  }
+}
+
+void spawn_faces() {
+  int rand_x = 0;
+  int rand_y = 0;
+
+  for (int i = 0; i < NUM_FACES; i++) {
+    rand_x = rand() % 68;
+    rand_y = (rand() % 22) + 10;
+    faces[i].x = rand_x;
+    faces[i].y = rand_y;
+    while (faces_collision(&faces[i], &faces[(i + 1) % 3]) ||
+      faces_collision(&faces[i], &faces[(i + 2) % 3])) {
+      rand_x = rand() % 68;
+      rand_y = (rand() % 22) + 10;
+      faces[i].x = rand_x;
+      faces[i].y = rand_y;
+    }
+  }
+}
+
 void check_speed() {
   if (speed == 1) {
     if (TCNT1 >= 45000) {
@@ -500,6 +555,7 @@ void check_speed() {
 
 int finish() {
   clear_screen();
+  start = 0;
   if (scores == 20) {
     draw_string(22, 20, "You win!");
     show_screen();
@@ -527,6 +583,11 @@ ISR(TIMER1_OVF_vect) {
   if (start) {
     for (int i = 0; i < NUM_FACES; i++) {
       faces[i].y += 2;
+    }
+  } else if (serial_port) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      faces[i].x += faces[i].dx;
+      faces[i].y += faces[i].dy;
     }
   }
 }
