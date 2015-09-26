@@ -9,6 +9,7 @@
 #include "cpu_speed.h"
 #include "graphics.h"
 #include "sprite.h"
+#include "usb_serial.h"
 
 #define NUM_FACES 3
 #define BYTE_PER_PLAYER 8
@@ -35,6 +36,7 @@ void wrap_around();
 void randomise_faces();
 void check_speed();
 int finish();
+void send_str(char* str);
 
 unsigned char player_bitmaps[BYTE_PER_PLAYER] = {
   0b00000000,
@@ -186,6 +188,13 @@ int main() {
           if (left_button_pressed()) {
             reset_game();
 
+            clear_screen();
+            draw_string(14, 17, "Waiting for");
+            draw_string(19, 24, "the player");
+            show_screen();
+
+            while (!usb_configured() || !usb_serial_get_control());
+
             while (lives > 0) {
               clear_screen();
               status(buff);
@@ -225,6 +234,8 @@ void init() {
   ADMUX |= (1 << REFS0);
 
   ADCSRA |= (1 << ADEN);
+
+  usb_init();
 
   sei();
 
@@ -458,6 +469,16 @@ int finish() {
     _delay_ms(3000);
     return 0;
   } 
+}
+
+void send_str(char* str) {
+  while (*str != '\0') {
+    usb_serial_putchar(*str);
+    str++;
+  }
+
+  usb_serial_putchar('\r');
+  usb_serial_putchar('\n');
 }
 
 ISR(TIMER1_OVF_vect) {
