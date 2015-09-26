@@ -28,6 +28,7 @@ void draw_player();
 void draw_faces();
 void update_player();
 void update_player_pot();
+void update_player_usb();
 void update_faces();
 void update_status();
 int player_collision();
@@ -117,8 +118,6 @@ int speed = 0;
 int main() {
 
   int opt = 0;
-  int next;
-  char key;
   char buff[80];
 
   init_sprite(&player, 39, 40, 8, 8, player_bitmaps);
@@ -195,46 +194,13 @@ int main() {
             draw_string(19, 24, "the player");
             show_screen();
 
-            while (!usb_configured() || !usb_serial_get_control());
+            while (!usb_configured() || 
+              !usb_serial_get_control());
 
             while (lives > 0) {
               clear_screen();
               status(buff);
-
-              draw_player();
-              key = usb_serial_getchar();
-
-              switch (key) {
-                case 'a':
-                  next = (int) round(player.x - 1);
-                  player.x -= 3;
-                  if (next <= 0) {
-                    player.x = 0;
-                  }
-                  break;
-                case 'd':
-                  next = (int) round(player.x + 5);
-                  player.x += 3;
-                  if (next >= 83) {
-                    player.x = 79;
-                  }
-                  break;
-                case 'w':
-                  next = (int) round(player.y - 1);
-                  player.y -= 3;
-                  if (next <= 10) {
-                    player.y = 10;
-                  }
-                  break;
-                case 's':
-                  next = (int) round(player.y + 7);
-                  player.y += 3;
-                  if (next >= 40) {
-                    player.y = 40;
-                  }
-                  break;
-              }
-
+              update_player_usb();
               check_speed();
               show_screen();
             }
@@ -398,6 +364,45 @@ void update_player_pot() {
   draw_player();
   player.x = 79 - floor(ADCH / 3.2);
   ADCSRA |= (1 << ADSC);
+}
+
+void update_player_usb() {
+  char key;
+  int next;
+
+  draw_player();
+  key = usb_serial_getchar();
+
+  switch (key) {
+    case 'a':
+      next = (int) round(player.x - 1);
+      player.x -= 3;
+      if (next <= 0) {
+        player.x = 0;
+      }
+      break;
+    case 'd':
+      next = (int) round(player.x + 5);
+      player.x += 3;
+      if (next >= 83) {
+        player.x = 79;
+      }
+      break;
+    case 'w':
+      next = (int) round(player.y - 1);
+      player.y -= 3;
+      if (next <= 10) {
+        player.y = 10;
+      }
+      break;
+    case 's':
+      next = (int) round(player.y + 7);
+      player.y += 3;
+      if (next >= 40) {
+        player.y = 40;
+      }
+    break;
+  }
 }
 
 void update_faces() {
