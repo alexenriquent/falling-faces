@@ -182,6 +182,19 @@ int main() {
           clear_screen();
           menu(3, "Serial Port", buff);
           opt = check_option(opt);
+
+          if (left_button_pressed()) {
+            reset_game();
+
+            while (lives > 0) {
+              clear_screen();
+              status(buff);
+              check_speed();
+              show_screen();
+            }
+            opt = finish();
+          }
+
           show_screen();
         }
 
