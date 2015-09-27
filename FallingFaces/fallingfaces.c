@@ -16,6 +16,8 @@
 #define BYTE_PER_FACE 32
 
 void init();
+void init_player();
+void init_faces();
 void welcome();
 int buttons_pressed();
 int left_button_pressed();
@@ -30,6 +32,7 @@ void update_player();
 void update_player_pot();
 void update_player_usb();
 void update_faces();
+void update_faces_usb();
 void update_status();
 int player_collision();
 int faces_collision(Sprite* face1, Sprite* face2);
@@ -41,7 +44,7 @@ void spawn_faces();
 void bounce();
 void edge_bounce();
 void check_speed();
-int finish();
+int finish(int option);
 void send_str(char* str);
 
 unsigned char player_bitmaps[BYTE_PER_PLAYER] = {
@@ -126,14 +129,10 @@ int main() {
   int opt = 0;
   char buff[80];
 
-  init_sprite(&player, 39, 40, 8, 8, player_bitmaps);
-  init_sprite(&faces[0], 10, 10, 16, 16, faces_bitmaps[0]);
-  init_sprite(&faces[1], 33, 10, 16, 16, faces_bitmaps[1]);
-  init_sprite(&faces[2], 56, 10, 16, 16, faces_bitmaps[2]);
-
   set_clock_speed(CPU_8MHz);
-
   init();
+  init_player();
+  init_faces();
 
   while (1) {
     clear_screen();
@@ -161,7 +160,7 @@ int main() {
               check_speed();
               show_screen();
             }
-            opt = finish();
+            opt = finish(opt);
           }
           show_screen();
         }
@@ -174,7 +173,7 @@ int main() {
           if (left_button_pressed()) {
             reset_game();
 
-            while (lives > 0) {
+            while (lives > 0 && scores < 20) {
               clear_screen();
               status(buff);
               update_player_pot();
@@ -182,7 +181,7 @@ int main() {
               check_speed();
               show_screen();
             }
-            opt = finish();
+            opt = finish(opt);
           }
           show_screen();
         }
@@ -203,7 +202,7 @@ int main() {
 
             while (!usb_configured() || 
               !usb_serial_get_control());
-
+            
             for (int i = 0; i < NUM_FACES; i++) {
               faces[i].x = 0;
               faces[i].y = 0;
@@ -213,17 +212,15 @@ int main() {
             randomise_directions();
             serial_port = 1;
 
-            while (lives > 0) {
+            while (lives > 0 && scores < 20) {
               clear_screen();
               status(buff);
               update_player_usb();
-              draw_faces();
-              edge_bounce();
-              bounce();
+              update_faces_usb();
               check_speed();
               show_screen();
             }
-            opt = finish();
+            opt = finish(opt);
           }
           show_screen();
         }
@@ -260,6 +257,16 @@ void init() {
   sei();
 
   ADCSRA |= (1 << ADSC);
+}
+
+void init_player() {
+  init_sprite(&player, 39, 40, 8, 8, player_bitmaps);
+}
+
+void init_faces() {
+  init_sprite(&faces[0], 0, 0, 16, 16, faces_bitmaps[0]);
+  init_sprite(&faces[1], 0, 0, 16, 16, faces_bitmaps[1]);
+  init_sprite(&faces[2], 0, 0, 16, 16, faces_bitmaps[2]);
 }
 
 void welcome() {
@@ -341,7 +348,13 @@ void reset_game() {
   finish_round = 0;
   speed = 0;
   serial_port = 0;
+
   player.x = 39;
+  player.y = 40;
+
+  faces[0].x = 10;
+  faces[1].x = 33;
+  faces[2].x = 56;
 
   for (int i = 0; i < NUM_FACES; i++) {
     faces[i].y = 10;
@@ -433,6 +446,17 @@ void update_faces() {
   update_status();
 }
 
+void update_faces_usb() {
+  draw_faces();
+  edge_bounce();
+  bounce();
+  update_status();
+
+  if (player_collision() == -1) {
+    finish_round = 0;
+  }
+}
+
 void update_status() {
   if (!finish_round) {
     if (player_collision() >= 0) {
@@ -473,8 +497,6 @@ int faces_collision(Sprite* face1, Sprite* face2) {
 }
 
 int bounce_collision(Sprite* face1, Sprite* face2) {
-  // return (abs(face1->x - face2->x) <= 16) &&
-  //   (abs(face1->y - face2->y) <= 16);
   return (face1->x + 16 >= face2->x &&
       face1->x <= face2->x + 16 &&
       face1->y + 16 >= face2->y &&
@@ -545,13 +567,17 @@ void spawn_faces() {
     rand_y = (rand() % 22) + 10;
     faces[i].x = rand_x;
     faces[i].y = rand_y;
-    while (faces_collision(&faces[i], &faces[(i + 1) % 3]) ||
-      faces_collision(&faces[i], &faces[(i + 2) % 3])) {
+    while ((faces_collision(&faces[i], &faces[(i + 1) % 3]) ||
+      faces_collision(&faces[i], &faces[(i + 2) % 3]))) {
       rand_x = rand() % 68;
       rand_y = (rand() % 22) + 10;
       faces[i].x = rand_x;
       faces[i].y = rand_y;
     }
+  }
+
+  if (player_collision() >= 0) {
+    faces[player_collision()].y -= 7;
   }
 }
 
@@ -570,7 +596,8 @@ void bounce() {
         faces[(i + 1) % 3].dx = 2;
         faces[(i + 1) % 3].x += 2;
         break;
-      } else if (faces[i].dy == -2) {
+      }
+      if (faces[i].dy == -2) {
         faces[i].dy = 2;
         faces[i].y += 2;
         faces[(i + 1) % 3].dy = -2;
@@ -618,15 +645,20 @@ void check_speed() {
   } 
 }
 
-int finish() {
+int finish(int option) {
+  char buff[80];
+
   clear_screen();
   start = 0;
   if (scores == 20) {
+    status(buff);
     draw_string(22, 20, "You win!");
     show_screen();
     _delay_ms(3000);
-    return 1;
+    option++;
+    return option % 3;
   } else if (lives == 0) {
+    status(buff);
     draw_string(22, 20, "You lose!");
     show_screen();
     _delay_ms(3000);
