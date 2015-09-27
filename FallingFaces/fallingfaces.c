@@ -33,10 +33,13 @@ void update_faces();
 void update_status();
 int player_collision();
 int faces_collision(Sprite* face1, Sprite* face2);
+int bounce_collision(Sprite* face1, Sprite* face2);
 void wrap_around();
 void randomise_faces();
 void randomise_directions();
 void spawn_faces();
+void bounce();
+void edge_bounce();
 void check_speed();
 int finish();
 void send_str(char* str);
@@ -195,7 +198,7 @@ int main() {
 
             clear_screen();
             draw_string(14, 17, "Waiting for");
-            draw_string(19, 24, "the player");
+            draw_string(9, 24, "the player...");
             show_screen();
 
             while (!usb_configured() || 
@@ -215,6 +218,8 @@ int main() {
               status(buff);
               update_player_usb();
               draw_faces();
+              edge_bounce();
+              bounce();
               check_speed();
               show_screen();
             }
@@ -467,6 +472,15 @@ int faces_collision(Sprite* face1, Sprite* face2) {
     (abs(face1->y - face2->y) <= 21);
 }
 
+int bounce_collision(Sprite* face1, Sprite* face2) {
+  // return (abs(face1->x - face2->x) <= 16) &&
+  //   (abs(face1->y - face2->y) <= 16);
+  return (face1->x + 16 >= face2->x &&
+      face1->x <= face2->x + 16 &&
+      face1->y + 16 >= face2->y &&
+      face1->y <= face2->y + 16);
+}
+
 void wrap_around() {
   int random = 0;
 
@@ -538,6 +552,57 @@ void spawn_faces() {
       faces[i].x = rand_x;
       faces[i].y = rand_y;
     }
+  }
+}
+
+void bounce() {
+  for (int i = 0; i < NUM_FACES; i++) {
+    if (bounce_collision(&faces[i], &faces[(i + 1) % 3])) {
+      if (faces[i].dx == -2) {
+        faces[i].dx = 2;
+        faces[i].x += 2;
+        faces[(i + 1) % 3].dx = -2;
+        faces[(i + 1) % 3].x -= 2;
+        break;
+      } else if (faces[i].dx == 2) {
+        faces[i].dx = -2;
+        faces[i].x -= 2;
+        faces[(i + 1) % 3].dx = 2;
+        faces[(i + 1) % 3].x += 2;
+        break;
+      } else if (faces[i].dy == -2) {
+        faces[i].dy = 2;
+        faces[i].y += 2;
+        faces[(i + 1) % 3].dy = -2;
+        faces[(i + 1) % 3].y -= 2;
+        break;
+      } else if (faces[i].dy == 2) {
+        faces[i].dy = -2;
+        faces[i].x -= 2;
+        faces[(i + 1) % 3].dy = 2;
+        faces[(i + 1) % 3].y += 2;
+        break;
+      }
+    }
+  }
+}
+
+void edge_bounce() {
+  for (int i = 0; i < NUM_FACES; i++) {
+    if (faces[i].x <= 0) {
+      faces[i].x = 0;
+      faces[i].dx = 2;
+    } else if (faces[i].x >= 68) {
+      faces[i].x = 68;
+      faces[i].dx = -2;
+    }
+    if (faces[i].y <= 10) {
+      faces[i].y = 10;
+      faces[i].dy = 2;
+    } else if (faces[i].y >= 32) {
+      faces[i].y = 32;
+      faces[i].dy = -2;
+    } 
   }
 }
 
