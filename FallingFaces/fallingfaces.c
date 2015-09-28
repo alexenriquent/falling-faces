@@ -26,6 +26,8 @@ int check_option(int option);
 void menu(int level, char desc[], char buff[]);
 void status(char buff[]);
 void reset_game();
+void reset_player();
+void reset_faces();
 void draw_player();
 void draw_faces();
 void update_player();
@@ -233,29 +235,42 @@ int main() {
 }
 
 void init() {
+  // initialise the LCD screen
   LCDInitialise(LCD_DEFAULT_CONTRAST);
 
+  // initialise SW0 and SW1 as inputs
   DDRB &= ~((1 << PB0) | (1 << PB1));
 
+  // set TIMER1 to the normal mode
   TCCR1B &= ~(1 << WGM12);
 
+  // set up TIMER1 with overflow interrupts
+  // system time overflowing every 0.52428s
   TCCR1B |= ((1 << CS11) | (1 << CS10));
   TCCR1B &= ~(1 << CS12);
-
   TIMSK1 = (1 << TOIE1);
 
+  // prescaler = 128 (beween 40 and 160)
+  // 8MHz / 50kHz = 800 / 5 = 160
+  // 8MHz / 200kHz = 80 / 2 = 40
   ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);
 
+  // ADC result register
   ADMUX |= (1 << ADLAR);
 
+  // voltage reference
   ADMUX |= (1 << REFS0);
 
+  // enable ADC
   ADCSRA |= (1 << ADEN);
 
+  // initialise the USB serial
   usb_init();
 
+  // enable global interrupt
   sei();
 
+  // start the first conversion
   ADCSRA |= (1 << ADSC);
 }
 
@@ -334,10 +349,6 @@ void status(char buff[]) {
   draw_string(17, 0, ", S:");
   sprintf(buff, "%d", scores);
   draw_string(40, 0, buff);
-  // sprintf(buff, "%d", speed);
-  // draw_string(78, 0, buff);
-  // sprintf(buff, "%d", ADCH);
-  // draw_string(60, 0, buff);
   draw_line(0, 8, 84, 8);
 }
 
@@ -349,17 +360,24 @@ void reset_game() {
   speed = 0;
   serial_port = 0;
 
+  reset_player();
+  reset_faces();
+}
+
+void reset_player() {
   player.x = 39;
   player.y = 40;
+}
 
-  faces[0].x = 10;
-  faces[1].x = 33;
-  faces[2].x = 56;
+void reset_faces() {
+  int x_pos = 10;
 
   for (int i = 0; i < NUM_FACES; i++) {
+    faces[i].x = x_pos;
     faces[i].y = 10;
     faces[i].dx = 0;
     faces[i].dy = 0;
+    x_pos += 23;
   }
 }
 
@@ -497,10 +515,10 @@ int faces_collision(Sprite* face1, Sprite* face2) {
 }
 
 int bounce_collision(Sprite* face1, Sprite* face2) {
-  return (face1->x + 16 >= face2->x &&
-      face1->x <= face2->x + 16 &&
-      face1->y + 16 >= face2->y &&
-      face1->y <= face2->y + 16);
+  return (face1->x + 15 >= face2->x &&
+      face1->x <= face2->x + 15 &&
+      face1->y + 15 >= face2->y &&
+      face1->y <= face2->y + 15);
 }
 
 void wrap_around() {
@@ -584,31 +602,19 @@ void spawn_faces() {
 void bounce() {
   for (int i = 0; i < NUM_FACES; i++) {
     if (bounce_collision(&faces[i], &faces[(i + 1) % 3])) {
-      if (faces[i].dx == -2) {
-        faces[i].dx = 2;
-        faces[i].x += 2;
-        faces[(i + 1) % 3].dx = -2;
-        faces[(i + 1) % 3].x -= 2;
-        break;
-      } else if (faces[i].dx == 2) {
-        faces[i].dx = -2;
-        faces[i].x -= 2;
-        faces[(i + 1) % 3].dx = 2;
-        faces[(i + 1) % 3].x += 2;
-        break;
-      }
-      if (faces[i].dy == -2) {
-        faces[i].dy = 2;
-        faces[i].y += 2;
-        faces[(i + 1) % 3].dy = -2;
-        faces[(i + 1) % 3].y -= 2;
-        break;
-      } else if (faces[i].dy == 2) {
-        faces[i].dy = -2;
-        faces[i].x -= 2;
-        faces[(i + 1) % 3].dy = 2;
-        faces[(i + 1) % 3].y += 2;
-        break;
+      faces[i].dx = -faces[i].dx;
+      faces[i].x += faces[i].dx;
+      faces[(i + 1) % 3].dx = -faces[(i + 1) % 3].dx;
+      faces[(i + 1) % 3].x += faces[(i + 1) % 3].dx;
+      if (bounce_collision(&faces[i], &faces[(i + 1) % 3])) {
+        faces[i].dx = -faces[i].dx;
+        faces[i].x += faces[i].dx;
+        faces[i].dy = -faces[i].dy;
+        faces[i].y += faces[i].dy;
+        faces[(i + 1) % 3].dx = -faces[(i + 1) % 3].dx;
+        faces[(i + 1) % 3].x += faces[(i + 1) % 3].dx;
+        faces[(i + 1) % 3].dy = -faces[(i + 1) % 3].dy;
+        faces[(i + 1) % 3].y += faces[(i + 1) % 3].dy; 
       }
     }
   }
@@ -676,6 +682,9 @@ void send_str(char* str) {
   usb_serial_putchar('\n');
 }
 
+/**
+* Interrupt service routine
+*/
 ISR(TIMER1_OVF_vect) {
   if (start) {
     for (int i = 0; i < NUM_FACES; i++) {
