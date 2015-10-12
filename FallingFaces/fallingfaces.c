@@ -377,7 +377,8 @@ void reset_faces() {
     faces[i].y = 10;
     faces[i].dx = 0;
     faces[i].dy = 0;
-    x_pos += 23;
+    faces[i].is_visible = 1;
+    x_pos += 25;
   }
 }
 
@@ -470,6 +471,10 @@ void update_faces_usb() {
   bounce();
   update_status();
 
+  for (int i = 0; i < NUM_FACES; i++) {
+    faces[i].is_visible = 1;
+  }
+
   if (player_collision() == -1) {
     finish_round = 0;
   }
@@ -481,15 +486,18 @@ void update_status() {
       switch (player_collision()) {
         case 0:
           scores += 2;
+          faces[0].is_visible = 0;
           break;
         case 1:
           speed++;
           if (speed >= 2) {
             speed = 2;
           }
+          faces[1].is_visible = 0;
           break;
         case 2:
           lives -= 1;
+          faces[2].is_visible = 0;
           break;
       }
       finish_round = 1;
@@ -533,6 +541,7 @@ void wrap_around() {
       } else {
         faces[i].y = 8;
       } 
+      faces[i].is_visible = 1;
       random = rand() % 66;
       faces[i].x = random;
       finish_round = 0;
